@@ -1,5 +1,7 @@
 package com.trevizan.javacoreplayground.service;
 
+import com.trevizan.javacoreplayground.exception.InvalidUserException;
+import com.trevizan.javacoreplayground.exception.UserNotFoundException;
 import com.trevizan.javacoreplayground.model.User;
 import com.trevizan.javacoreplayground.repository.UserRepository;
 
@@ -39,11 +41,11 @@ class UserServiceTests {
         User userMissingEmail = new User(null, "Username", null);
 
         assertThatThrownBy(() -> userService.createUser(userMissingName))
-            .isInstanceOf(RuntimeException.class)
+            .isInstanceOf(InvalidUserException.class)
             .hasMessageContaining("required");
 
         assertThatThrownBy(() -> userService.createUser(userMissingEmail))
-            .isInstanceOf(RuntimeException.class)
+            .isInstanceOf(InvalidUserException.class)
             .hasMessageContaining("required");
     }
 
@@ -80,7 +82,7 @@ class UserServiceTests {
     @Test
     void shouldThrowExceptionWhenUserWasNotFound() {
         assertThatThrownBy(() -> userService.getUserById(999L))
-            .isInstanceOf(RuntimeException.class)
+            .isInstanceOf(UserNotFoundException.class)
             .hasMessageContaining("not found");
     }
 

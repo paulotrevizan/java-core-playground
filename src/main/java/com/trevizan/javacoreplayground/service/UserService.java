@@ -1,10 +1,11 @@
 package com.trevizan.javacoreplayground.service;
 
+import com.trevizan.javacoreplayground.exception.InvalidUserException;
+import com.trevizan.javacoreplayground.exception.UserNotFoundException;
 import com.trevizan.javacoreplayground.model.User;
 import com.trevizan.javacoreplayground.repository.UserRepository;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -19,17 +20,15 @@ public class UserService {
 
     public User createUser(User user) {
         if (user.getName() == null || user.getEmail() == null) {
-            throw new RuntimeException("User name and email are required.");
+            throw new InvalidUserException("User name and email are required.");
         }
         return userRepository.save(user);
     }
 
     public User getUserById(Long id) {
-        Optional<User> user = userRepository.findById(id);
-        if (user.isEmpty()) {
-            throw new RuntimeException("User not found.");
-        }
-        return user.get();
+        return userRepository.findById(id).orElseThrow(
+            () -> new UserNotFoundException(id)
+        );
     }
 
     public List<User> getAllUsers() {
