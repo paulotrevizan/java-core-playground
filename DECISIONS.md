@@ -55,6 +55,13 @@
   - Focus on **behavior**: success and failure paths.
   - Do not test framework or DB integration (future implementation will cover it).
 
+## UserController Tests
+- **Integration-style tests**: use MockMvc to validate HTTP status, payload structure, JSON binding, and endpoint contracts.
+- **Do not test service logic**: only verifies the API layer behaves as expected.
+- **Trade-offs**:
+  - Pros: ensures HTTP contract is correct, catches serialization/validation issues, safe to refactor service logic.
+  - Cons: requires Spring context load, slightly slower than pure unit tests.
+
 ## Exceptions & Error Handling
 - The project uses **unchecked exceptions** for domain errors.
 - Domain-specific exceptions clearly express business rules:
