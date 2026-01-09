@@ -86,4 +86,41 @@ class UserServiceTests {
             .hasMessageContaining("not found");
     }
 
+    @Test
+    void shouldUpdateUserWhenUserExists() {
+        User created = userService.createUser(new User(null, "Anakin", "anakin@skywalker.com"));
+
+        User updated = userService.updateUser(
+            created.getId(),
+            new User(null, "Darth Vader", "vader@empire.com")
+        );
+
+        assertThat(updated.getName()).isEqualTo("Darth Vader");
+        assertThat(updated.getEmail()).isEqualTo("vader@empire.com");
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpdatingNonExistingUser() {
+        assertThatThrownBy(() ->
+            userService.updateUser(999L, new User(null, "X", "x@test.com")))
+            .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    void shouldDeleteUserWhenUserExists() {
+        User created = userService.createUser(new User(null, "Luke", "luke@jedi.com"));
+
+        userService.deleteUser(created.getId());
+
+        assertThatThrownBy(() ->
+            userService.getUserById(created.getId()))
+            .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenDeletingNonExistingUser() {
+        assertThatThrownBy(() -> userService.deleteUser(50L))
+            .isInstanceOf(UserNotFoundException.class);
+    }
+
 }

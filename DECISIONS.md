@@ -29,31 +29,27 @@
 ## UserController
 - **Controller thin**: delegates all business logic to `UserService`.
 - **Endpoints implemented**:
-  - `GET /users`: returns all users
-  - `GET /users/{id}`: returns one user or propagates domain exception
-  - `POST /users`: creates a new user, returns 200 OK (for now)
+  - `GET /users`: returns all users.
+  - `GET /users/{id}`: returns one user or propagates domain exception.
+  - `POST /users`: creates a new user, now returns `201 Created` with `Location` header.
+  - `PUT /users/{id}`: updates an existing user.
+  - `DELETE /users/{id}`: deletes an existing user.
+- **DTO vs Entity**: using `UserDto` in controller to decouple API contract from internal entity.
 - **Exception handling**:
   - No try/catch blocks.
   - Relies on global exception handling via `@ControllerAdvice`.
-- **DTO vs Entity**: using entity directly for now, no separate DTO layer.
 - **Trade-offs**:
-  - Pros: simple, keeps controller focused on routing, fast to prototype.
-  - Cons:
-    - POST ideally should return `201 Created` with Location header (TO-DO).
-    - Tightly couples API to internal entity, future changes will require DTOs.
-- **Scalability / maintenance**: sufficient for a small learning POC and allows fast iteration and focus on core Java/Spring concepts.
+  - Pros: clear HTTP semantics, separates API model from domain, full CRUD supported.
+  - Cons: service layer still works with entity, DTO mapping added, minor extra complexity.
 
 ## UserService Tests
-- **Light-weight unit tests**: cover basic behavior of `createUser`, `getUserById` and `getAllUsers`.
+- **Light-weight unit tests**: cover basic behavior of `createUser`, `getUserById`, `updateUser`, `deleteUser`, and `getAllUsers`.
 - **No complex mocks**: repository is in-memory, keep it simple for now.
 - **Trade-offs**:
-  - Pros: ensures correct behavior and facilitates future refactoring, providing fast feedback for future changes.
+  - Pros: ensures correct behavior and facilitates future refactoring, providing fast feedback for changes.
   - Cons:
-    - Does not cover real concurrency and it is still not integrated with a real DB.
+    - Does not cover real concurrency and is still not integrated with a real DB.
     - Does not validate HTTP layer behavior.
-- **Testing decisions**:
-  - Focus on **behavior**: success and failure paths.
-  - Do not test framework or DB integration (future implementation will cover it).
 
 ## UserController Tests
 - **Integration-style tests**: use MockMvc to validate HTTP status, payload structure, JSON binding, and endpoint contracts.

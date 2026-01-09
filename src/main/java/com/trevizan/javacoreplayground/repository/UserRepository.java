@@ -32,4 +32,19 @@ public class UserRepository {
         return new ArrayList<>(store.values());
     }
 
+    public Optional<User> update(Long id, User user) {
+        if (!store.containsKey(id)) {
+            return Optional.empty();
+        }
+
+        User updatedUser = user.withId(id);
+        store.put(id, updatedUser);
+
+        return Optional.of(updatedUser);
+    }
+
+    public boolean deleteById(Long id) {
+        return store.remove(id) != null;
+    }
+
 }

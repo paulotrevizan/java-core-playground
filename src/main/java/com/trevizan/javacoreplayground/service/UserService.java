@@ -35,4 +35,16 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    public User updateUser(Long id, User user) {
+        return userRepository.update(id, user)
+            .orElseThrow(() -> new UserNotFoundException(id));
+    }
+
+    public void deleteUser(Long id) {
+        boolean userDeleted = userRepository.deleteById(id);
+        if (!userDeleted) {
+            throw new UserNotFoundException(id);
+        }
+    }
+
 }
