@@ -45,14 +45,19 @@
 ## ExternalUserValidationClient
 - **Responsibility**: integrates with external user validation service over HTTP.
 - **Implementation**:
-  - Uses Spring Boot 4 `RestClient`.
+  - Uses `RestTemplate` with Apache HttpClient.
   - Base URL fixed for tests: `http://localhost:8099`.
 - **Error handling**:
-  - Throws `ExternalServiceException` on null or invalid responses.
-  - No retries or circuit breakers (for now).
-- **Trade-offs**:
-  - Pros: Simple, explicit and easy to test.
-  - Cons: Not production resilient.
+  - Throws `ExternalServiceException` on:
+    - null response
+    - client/server errors (4xx, 5xx)
+    - timeouts (`SocketTimeoutException` wrapped)
+- Error mapping:
+  - `ResourceAccessException` - `ExternalServiceException`
+  - `SocketTimeoutException` - `ExternalServiceException` with timeout message
+- Trade-offs:
+  - Pros: explicit, testable, covers slow responses
+  - Cons: no retries, no circuit breakers, fixed base URL in tests
 
 ## UserService Tests
 - **Light-weight unit tests**: cover basic behavior of `createUser`, `getUserById`, `updateUser`, `deleteUser`, and `getAllUsers`.
@@ -82,9 +87,12 @@
   - **Intermittent server error**
     - WireMock returns 500 on first call, then 200 on second.
     - Client throws on first call, succeeds on second.
+  - **Timeout**
+    - WireMock delays response beyond RestTemplate timeout (e.g., 5s).
+    - Client throws `ExternalServiceException` with timeout message.
 - **Trade-offs**:
   - Pros: Covers main failure cases, reproducible locally.
-  - Cons: No circuit breaker or retry logic; only for testing.
+  - Cons: No circuit breaker or retry logic, only for testing.
 
 ## Exceptions & Error Handling
 - The project uses **unchecked exceptions** for domain errors.
