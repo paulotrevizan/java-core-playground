@@ -42,6 +42,18 @@
   - Pros: clear HTTP semantics, separates API model from domain, full CRUD supported.
   - Cons: service layer still works with entity, DTO mapping added, minor extra complexity.
 
+## ExternalUserValidationClient
+- **Responsibility**: integrates with external user validation service over HTTP.
+- **Implementation**:
+  - Uses Spring Boot 4 `RestClient`.
+  - Base URL fixed for tests: `http://localhost:8099`.
+- **Error handling**:
+  - Throws `ExternalServiceException` on null or invalid responses.
+  - No retries or circuit breakers (for now).
+- **Trade-offs**:
+  - Pros: Simple, explicit and easy to test.
+  - Cons: Not production resilient.
+
 ## UserService Tests
 - **Light-weight unit tests**: cover basic behavior of `createUser`, `getUserById`, `updateUser`, `deleteUser`, and `getAllUsers`.
 - **No complex mocks**: repository is in-memory, keep it simple for now.
@@ -57,6 +69,22 @@
 - **Trade-offs**:
   - Pros: ensures HTTP contract is correct, catches serialization/validation issues, safe to refactor service logic.
   - Cons: requires Spring context load, slightly slower than pure unit tests.
+
+### Integration tests (WireMock)
+- **Purpose**: validate client behavior in success and failure scenarios.
+- **Scenarios**:
+  - **Success (`200 OK`)**
+    - WireMock returns `{ "valid": true }`.
+    - Client returns `true`.
+  - **Server error (`500`)**
+    - WireMock returns 500.
+    - Client throws `ExternalServiceException`.
+  - **Intermittent server error**
+    - WireMock returns 500 on first call, then 200 on second.
+    - Client throws on first call, succeeds on second.
+- **Trade-offs**:
+  - Pros: Covers main failure cases, reproducible locally.
+  - Cons: No circuit breaker or retry logic; only for testing.
 
 ## Exceptions & Error Handling
 - The project uses **unchecked exceptions** for domain errors.
