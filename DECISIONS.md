@@ -47,17 +47,16 @@
 - **Implementation**:
   - Uses `RestTemplate` with Apache HttpClient.
   - Base URL fixed for tests: `http://localhost:8099`.
+  - Wrapped with Resilience4j `CircuitBreaker`.
 - **Error handling**:
   - Throws `ExternalServiceException` on:
     - null response
     - client/server errors (4xx, 5xx)
-    - timeouts (`SocketTimeoutException` wrapped)
-- Error mapping:
-  - `ResourceAccessException` - `ExternalServiceException`
-  - `SocketTimeoutException` - `ExternalServiceException` with timeout message
-- Trade-offs:
-  - Pros: explicit, testable, covers slow responses
-  - Cons: no retries, no circuit breakers, fixed base URL in tests
+    - timeouts (`SocketTimeoutException` wrapped via `ResourceAccessException`)
+  - Throws `CallNotPermittedException` when circuit breaker is OPEN.
+- **Trade-offs**:
+  - Pros: explicit failure handling, fast-fail protection via circuit breaker, easy to test with WireMock.
+  - Cons: no retry or fallback yet, fixed base URL in tests.
 
 ## UserService Tests
 - **Light-weight unit tests**: cover basic behavior of `createUser`, `getUserById`, `updateUser`, `deleteUser`, and `getAllUsers`.
@@ -76,23 +75,31 @@
   - Cons: requires Spring context load, slightly slower than pure unit tests.
 
 ### Integration tests (WireMock)
-- **Purpose**: validate client behavior in success and failure scenarios.
+- **Purpose**: validate external client behavior under success, failure and resilience scenarios.
 - **Scenarios**:
   - **Success (`200 OK`)**
     - WireMock returns `{ "valid": true }`.
     - Client returns `true`.
+    - Circuit breaker remains `CLOSED`.
   - **Server error (`500`)**
     - WireMock returns 500.
     - Client throws `ExternalServiceException`.
+    - Failure is recorded by the circuit breaker.
   - **Intermittent server error**
     - WireMock returns 500 on first call, then 200 on second.
-    - Client throws on first call, succeeds on second.
+    - First call throws `ExternalServiceException`.
+    - Second call succeeds if circuit allows execution.
   - **Timeout**
-    - WireMock delays response beyond RestTemplate timeout (e.g., 5s).
-    - Client throws `ExternalServiceException` with timeout message.
+    - WireMock delays response beyond RestTemplate timeout.
+    - Client throws `ExternalServiceException` with timeout cause.
+  - **Circuit breaker OPEN**
+    - After consecutive failures, circuit transitions to `OPEN`.
+    - Further calls throw `CallNotPermittedException`.
+  - **Circuit breaker HALF-OPEN to CLOSED**
+    - After wait duration, a successful call closes the circuit.
 - **Trade-offs**:
-  - Pros: Covers main failure cases, reproducible locally.
-  - Cons: No circuit breaker or retry logic, only for testing.
+  - Pros: validates real failure modes, circuit breaker states and transitions, reproducible locally.
+  - Cons: retry and fallback not covered yet.
 
 ## Exceptions & Error Handling
 - The project uses **unchecked exceptions** for domain errors.
@@ -115,3 +122,4 @@
 - **Immutability & thread-safety**: using immutable models avoids synchronized for read-only operations.
 - **Performance considerations**: defensive copies and creation of new instances have minor memory/CPU overhead, acceptable for small-scale and learning projects.
 - **Scalability**: current in-memory approach is fine for the initial POC and it'll be replaced with real DB later.
+- **Resilience approach**: circuit breaker added first to prevent cascading failures; retry and fallback intentionally deferred to later iterations.

@@ -2,9 +2,12 @@ package com.trevizan.javacoreplayground.service.external;
 
 import com.trevizan.javacoreplayground.exception.ExternalServiceException;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+
 import java.net.SocketTimeoutException;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
@@ -12,12 +15,24 @@ import org.springframework.web.client.RestTemplate;
 public class ExternalUserValidationClient {
 
     private final RestTemplate restTemplate;
+    private final CircuitBreaker circuitBreaker;
 
-    public ExternalUserValidationClient(RestTemplate restTemplate) {
+    public ExternalUserValidationClient(
+        RestTemplate restTemplate,
+        CircuitBreaker externalUserValidationCircuitBreaker
+    ) {
         this.restTemplate = restTemplate;
+        this.circuitBreaker = externalUserValidationCircuitBreaker;
     }
 
     public boolean validate(String name, String email) {
+        return CircuitBreaker.decorateSupplier(
+            circuitBreaker,
+            () -> doValidate(name, email)
+        ).get();
+    }
+
+    private boolean doValidate(String name, String email) {
         try {
             ExternalUserValidationResponse response =
                 restTemplate.postForObject(
@@ -31,6 +46,11 @@ public class ExternalUserValidationClient {
             }
 
             return response.valid();
+        } catch (HttpStatusCodeException ex) {
+            throw new ExternalServiceException(
+                "External service returned error: " + ex.getStatusCode(),
+                ex
+            );
         } catch (ResourceAccessException ex) {
             throw mapResourceAccessException(ex);
         }

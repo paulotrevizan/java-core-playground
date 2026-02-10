@@ -4,6 +4,7 @@ This is a study project focused on **Java Core** and **Spring Boot**, with focus
 - Language fundamentals
 - Best practices
 - Clean architecture
+- Resilience patterns (circuit breaker, retry, fallback)
 
 ## Stack
 - Java 21

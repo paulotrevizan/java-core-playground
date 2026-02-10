@@ -2,12 +2,16 @@ package com.trevizan.javacoreplayground.service.external;
 
 import com.trevizan.javacoreplayground.exception.ExternalServiceException;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+
+import java.net.SocketTimeoutException;
+
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 
@@ -24,6 +28,14 @@ class ExternalUserValidationClientIT {
 
     @Autowired
     private ExternalUserValidationClient client;
+
+    @Autowired
+    private CircuitBreaker externalUserValidationCircuitBreaker;
+
+    @BeforeEach
+    void resetCircuitBreaker() {
+        externalUserValidationCircuitBreaker.reset();
+    }
 
     @Test
     void shouldReturnTrueWhenExternalServiceReturnsValidUser() {
@@ -47,7 +59,7 @@ class ExternalUserValidationClientIT {
 
         Assertions.assertThatThrownBy(() ->
                 client.validate("Paulo", "paulo@trevizan.com"))
-            .isInstanceOf(Exception.class);
+            .isInstanceOf(ExternalServiceException.class);
     }
 
     @Test
@@ -67,8 +79,8 @@ class ExternalUserValidationClientIT {
                 .withBody("{\"valid\": true}")));
 
         Assertions.assertThatThrownBy(() ->
-                client.validate("Paulo", "paulo@trevizan.com"))
-            .isInstanceOf(Exception.class);
+                client.validate("Paulo", "paulo@trevizan.com")
+            ).isInstanceOf(ExternalServiceException.class);
 
         boolean result = client.validate("Paulo", "paulo@trevizan.com");
         Assertions.assertThat(result).isTrue();
@@ -86,7 +98,7 @@ class ExternalUserValidationClientIT {
         Assertions.assertThatThrownBy(() ->
             client.validate("Paulo", "paulo@trevizan.com"))
             .isInstanceOf(ExternalServiceException.class)
-            .hasCauseInstanceOf(ResourceAccessException.class);
+            .hasCauseInstanceOf(SocketTimeoutException.class);
     }
 
     @Test
@@ -110,8 +122,75 @@ class ExternalUserValidationClientIT {
                 .withStatus(400)));
 
         Assertions.assertThatThrownBy(() ->
-                client.validate("Paulo", "paulo@trevizan.com"))
-            .isInstanceOf(HttpClientErrorException.BadRequest.class);
+                client.validate("Paulo", "paulo@trevizan.com")
+            ).isInstanceOf(ExternalServiceException.class);
+    }
+
+    @Test
+    void shouldReturnTrueWhenServiceIsUp() {
+        stubFor(post("/api/v1/external/users/validate")
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"valid\": true}")
+            )
+        );
+
+        boolean result = client.validate("Paulo", "paulo@trevizan.com");
+        Assertions.assertThat(result).isTrue();
+        Assertions.assertThat(externalUserValidationCircuitBreaker.getState())
+            .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void shouldOpenCircuitAfterFailures() {
+        stubFor(post("/api/v1/external/users/validate")
+            .willReturn(aResponse()
+                .withStatus(500)));
+
+        for (int i = 0; i < 4; i++) {
+            Assertions.assertThatThrownBy(() ->
+                client.validate("Paulo", "paulo@trevizan.com")
+            ).isInstanceOf(ExternalServiceException.class);
+        }
+
+        Assertions.assertThat(externalUserValidationCircuitBreaker.getState())
+            .isEqualTo(CircuitBreaker.State.OPEN);
+
+        Assertions.assertThatThrownBy(() ->
+            client.validate("Paulo", "paulo@trevizan.com")
+        ).isInstanceOf(CallNotPermittedException.class);
+    }
+
+    @Test
+    void shouldCloseCircuitAfterSuccessfulHalfOpenCall() throws InterruptedException {
+        stubFor(post("/api/v1/external/users/validate")
+            .willReturn(aResponse()
+                .withStatus(500)));
+
+        for (int i = 0; i < 4; i++) {
+            Assertions.assertThatThrownBy(() ->
+                client.validate("Paulo", "paulo@trevizan.com")
+            ).isInstanceOf(ExternalServiceException.class);
+        }
+
+        Assertions.assertThat(externalUserValidationCircuitBreaker.getState())
+            .isEqualTo(CircuitBreaker.State.OPEN);
+
+        Thread.sleep(5100);
+
+        stubFor(post("/api/v1/external/users/validate")
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"valid\": true}")
+            )
+        );
+
+        boolean result = client.validate("Paulo", "paulo@trevizan.com");
+        Assertions.assertThat(result).isTrue();
+        Assertions.assertThat(externalUserValidationCircuitBreaker.getState())
+            .isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
 }
