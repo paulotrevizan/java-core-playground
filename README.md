@@ -12,12 +12,13 @@ This is a study project focused on **Java Core** and **Spring Boot**, with focus
 - Spring Web
 - Spring Data JPA
 - H2 Database
+- Resilience4j
 - JUnit 5 + AssertJ
 
 ## Project Goals
 - Reinforce Java Collections, Streams, and Immutability
 - Understand exceptions (checked vs unchecked)
-- Apply unit and integration testing
+- Apply unit and integration testing, including resilience patterns (circuit breaker, retry)
 - Build a simple and well-structured REST API
 
 ## Project Structure

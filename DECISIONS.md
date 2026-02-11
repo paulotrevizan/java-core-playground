@@ -56,7 +56,7 @@
   - Throws `CallNotPermittedException` when circuit breaker is OPEN.
 - **Trade-offs**:
   - Pros: explicit failure handling, fast-fail protection via circuit breaker, easy to test with WireMock.
-  - Cons: no retry or fallback yet, fixed base URL in tests.
+  - Cons: no fallback yet, fixed base URL in tests.
 
 ## UserService Tests
 - **Light-weight unit tests**: cover basic behavior of `createUser`, `getUserById`, `updateUser`, `deleteUser`, and `getAllUsers`.
@@ -81,6 +81,10 @@
     - WireMock returns `{ "valid": true }`.
     - Client returns `true`.
     - Circuit breaker remains `CLOSED`.
+  - **Client error (`400`)**
+    - WireMock returns 400.
+    - Client throws `IllegalArgumentException`.
+    - Circuit breaker remains `CLOSED` and failure is not counted.
   - **Server error (`500`)**
     - WireMock returns 500.
     - Client throws `ExternalServiceException`.
