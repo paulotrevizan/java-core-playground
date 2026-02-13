@@ -10,6 +10,10 @@ resilience4j:
         minimum-number-of-calls: 4
         wait-duration-in-open-state: 5s
         permitted-number-of-calls-in-half-open-state: 1
+        record-exceptions:
+          - com.trevizan.javacoreplayground.exception.ExternalServiceException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
   retry:
     instances:
       external-user-validation:
